@@ -7,7 +7,14 @@ import {
   registerUserAction,
 } from "@/app/actions";
 
-const initialState = { success: false, message: "" };
+interface FormState {
+  success: boolean;
+  message: string;
+  role?: string; // Optional: only present after login
+  shortUrl?: string; // Optional: only present after shortening
+}
+
+const initialState: FormState = { success: false, message: "" };
 
 export default function LinkShortener() {
   // Server Actions
