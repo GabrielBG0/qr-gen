@@ -5,7 +5,7 @@ import { useQRCode } from "next-qrcode";
 
 export default function QRCodeGenerator() {
   const { Canvas } = useQRCode();
-  const [link, setLink] = useState<string>("https://vercel.com");
+  const [link, setLink] = useState<string>("https://gabrielbg.com.br");
   const [copyStatus, setCopyStatus] = useState<string>(""); // For user feedback
 
   // We need a ref to find the canvas element later
