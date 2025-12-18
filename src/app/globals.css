@@ -1,26 +1,20 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Example Modal Styling */
+.modal-content {
+  background-color: #f0f0f0; /* Original color */
+  padding: 20px;
+  border-radius: 8px;
+  transition: all 0.3s ease; /* Smooth transition for color change */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Success State */
+.modal-content.success {
+  background-color: #ffffff !important; /* Forces white background */
+  color: #28a745; /* Green text for success, or black if you prefer */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 200px; /* Optional: Fix height if the form collapsing makes it jump */
 }

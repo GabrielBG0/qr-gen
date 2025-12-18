@@ -3,13 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/postgres": "^0.10.0",
+    "bcrypt": "^6.0.0",
+    "nanoid": "^5.1.6",
     "next": "16.1.0",
+    "next-qrcode": "^2.5.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
