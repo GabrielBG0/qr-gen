@@ -54,7 +54,7 @@ export async function shortenUrlAction(prevState: any, formData: FormData) {
     `;
 
     const host = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+      ? `https://${process.env.NEXT_PUBLIC_BASE_URL}`
       : "http://localhost:3000";
 
     // 2. CASE A: Return existing
