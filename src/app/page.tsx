@@ -48,14 +48,7 @@ export default function Home() {
 
         {/* App wordmark — left side */}
         <div className="flex items-center gap-2 mr-4 mb-3 shrink-0">
-          <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          </div>
+          <img src="/star.svg" alt="QR Gen Logo" className="w-7 h-7" />
           <span className="text-sm font-bold text-gray-700 dark:text-gray-300 tracking-tight">QR Gen</span>
         </div>
 
