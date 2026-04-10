@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+
 /* Example Modal Styling */
 .modal-content {
   background-color: #f0f0f0; /* Original color */
