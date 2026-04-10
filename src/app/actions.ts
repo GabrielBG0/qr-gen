@@ -10,13 +10,29 @@ export async function loginAction(prevState: any, formData: FormData) {
   const username = formData.get("username") as string;
   const password = formData.get("password") as string;
 
+  // 1. Basic Input Validation (prevents overly large inputs and bad types)
+  if (!username || typeof username !== "string" || username.length > 50) {
+    return { success: false, message: "Invalid credentials" };
+  }
+  if (!password || typeof password !== "string" || password.length > 100) {
+    return { success: false, message: "Invalid credentials" };
+  }
+
   try {
     const { rows } = await sql`
       SELECT * FROM users WHERE username = ${username}
     `;
     const user = rows[0];
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    // 2. Prevent Timing Attacks (always take roughly the same amount of time)
+    let isPasswordCorrect = false;
+    if (user) {
+      isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
+    } else {
+      await bcrypt.hash(password, 10); // Dummy operation
+    }
+
+    if (!user || !isPasswordCorrect) {
       return { success: false, message: "Invalid credentials" };
     }
 
@@ -24,13 +40,16 @@ export async function loginAction(prevState: any, formData: FormData) {
     cookieStore.set("session_user_id", user.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "strict", // 3. Prevent CSRF attacks on cookies
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
 
     return { success: true, message: "Logged in!", role: user.role };
   } catch (error) {
-    return { success: false, message: "Database connection failed" };
+    console.error("Login Error:", error);
+    // 4. Do not leak internal database errors
+    return { success: false, message: "An unexpected error occurred" };
   }
 }
 
@@ -102,8 +121,20 @@ export async function registerUserAction(prevState: any, formData: FormData) {
   const newPassword = formData.get("password") as string;
   const newRole = formData.get("role") as string;
 
+  // 1. Input Validation
+  if (!newUsername || typeof newUsername !== "string" || newUsername.length < 3 || newUsername.length > 50) {
+    return { success: false, message: "Invalid username (must be 3-50 chars)" };
+  }
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > 100) {
+    return { success: false, message: "Invalid password (must be 8-100 chars)" };
+  }
+  if (newRole !== "admin" && newRole !== "user") {
+    return { success: false, message: "Invalid role" };
+  }
+
   try {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // 2. Increase bcrypt salt rounds to 12 for stronger hashing
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     await sql`
       INSERT INTO users (username, password_hash, role)
@@ -112,6 +143,8 @@ export async function registerUserAction(prevState: any, formData: FormData) {
 
     return { success: true, message: `User ${newUsername} created!` };
   } catch (error) {
-    return { success: false, message: "User already exists or DB error" };
+    console.error("Register Error:", error);
+    // 3. Keep DB errors generic
+    return { success: false, message: "Registration failed or user already exists" };
   }
 }
