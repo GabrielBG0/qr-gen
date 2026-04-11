@@ -7,15 +7,8 @@ import {
   registerUserAction,
   getUserLinksAction,
   deleteLinkAction,
+  type FormState,
 } from "@/app/actions";
-
-interface FormState {
-  success: boolean;
-  message: string;
-  role?: string;
-  shortUrl?: string;
-  shortCode?: string;
-}
 
 const initialState: FormState = { success: false, message: "" };
 

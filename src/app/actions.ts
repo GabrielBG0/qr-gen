@@ -5,8 +5,16 @@ import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
 import { nanoid } from "nanoid";
 
+export interface FormState {
+  success: boolean;
+  message: string;
+  role?: string;
+  shortUrl?: string;
+  shortCode?: string;
+}
+
 // --- ACTION 1: LOGIN ---
-export async function loginAction(prevState: any, formData: FormData) {
+export async function loginAction(prevState: FormState, formData: FormData): Promise<FormState> {
   const username = formData.get("username") as string;
   const password = formData.get("password") as string;
 
@@ -53,7 +61,7 @@ export async function loginAction(prevState: any, formData: FormData) {
 }
 
 // --- ACTION 2: SHORTEN LINK (With Deduplication) ---
-export async function shortenUrlAction(prevState: any, formData: FormData) {
+export async function shortenUrlAction(prevState: FormState, formData: FormData): Promise<FormState> {
   const originalUrl = formData.get("url") as string;
 
   const cookieStore = await cookies();
@@ -95,6 +103,7 @@ export async function shortenUrlAction(prevState: any, formData: FormData) {
 
     return {
       success: true,
+      message: "Link shortened successfully",
       shortUrl: `${host}/${shortCode}`,
       shortCode,
     };
@@ -104,7 +113,7 @@ export async function shortenUrlAction(prevState: any, formData: FormData) {
 }
 
 // --- ACTION 3: REGISTER USER ---
-export async function registerUserAction(prevState: any, formData: FormData) {
+export async function registerUserAction(prevState: FormState, formData: FormData): Promise<FormState> {
   const cookieStore = await cookies();
   const currentUserId = cookieStore.get("session_user_id")?.value;
 
