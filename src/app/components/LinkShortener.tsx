@@ -5,6 +5,8 @@ import {
   loginAction,
   shortenUrlAction,
   registerUserAction,
+  getUserLinksAction,
+  deleteLinkAction,
 } from "@/app/actions";
 
 interface FormState {
@@ -12,6 +14,7 @@ interface FormState {
   message: string;
   role?: string;
   shortUrl?: string;
+  shortCode?: string;
 }
 
 const initialState: FormState = { success: false, message: "" };
@@ -30,12 +33,7 @@ const primaryBtnCls =
   "w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 " +
   "text-white font-semibold rounded-xl transition shadow-sm disabled:opacity-50 text-sm";
 
-// ── Static recent-links placeholder so the right panel isn't empty pre-login
-const PLACEHOLDER_LINKS = [
-  { short: "qrg.to/launch", original: "https://my-product-launch-page.com/2026", clicks: 1247 },
-  { short: "qrg.to/deck", original: "https://docs.google.com/presentation/d/abc123", clicks: 894 },
-  { short: "qrg.to/yt", original: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", clicks: 612 },
-];
+
 
 export default function LinkShortener() {
   const [loginState, loginDispatch, isLoginPending] = useActionState(loginAction, initialState);
@@ -47,19 +45,38 @@ export default function LinkShortener() {
   const [showModal, setShowModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRegisterSuccess, setIsRegisterSuccess] = useState(false);
-  const [shortenedList, setShortenedList] = useState<{ short: string; original: string }[]>([]);
+  const [shortenedList, setShortenedList] = useState<{ short: string; original: string; clicks?: number; shortCode?: string }[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const handleDelete = async (shortCode?: string) => {
+    if (!shortCode) return;
+    setOpenMenuId(null);
+    const res = await deleteLinkAction(shortCode);
+    if (res.success) {
+      setShortenedList((prev) => prev.filter((link) => link.shortCode !== shortCode));
+    } else {
+      alert(res.message || "Failed to delete");
+    }
+  };
 
   useEffect(() => {
-    if (loginState.success && loginState.role) setUserRole(loginState.role);
+    if (loginState.success && loginState.role) {
+      setUserRole(loginState.role);
+      getUserLinksAction().then((res) => {
+        if (res.success && res.links) {
+          setShortenedList(res.links);
+        }
+      });
+    }
   }, [loginState]);
 
   useEffect(() => {
     if (shortenState?.success && shortenState.shortUrl) {
       setShortUrl(shortenState.shortUrl);
-      setShortenedList((prev) => [
-        { short: shortenState.shortUrl!, original: "—" },
-        ...prev,
-      ].slice(0, 8));
+      setShortenedList((prev) => {
+        if (prev.some((link) => link.short === shortenState.shortUrl)) return prev;
+        return [{ short: shortenState.shortUrl!, original: "Newly Shortened", clicks: 0, shortCode: shortenState.shortCode }, ...prev];
+      });
       setCopySuccess(false);
     }
   }, [shortenState]);
@@ -189,55 +206,82 @@ export default function LinkShortener() {
         {/* ── RIGHT: Info / History panel ─────────────────────────────────── */}
         <div className="flex flex-col gap-5">
 
-          {/* Stats strip */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "Links Created", value: loginState.success ? shortenedList.length.toString() : "—" },
-              { label: "Clicks Today", value: loginState.success ? "—" : "—" },
-              { label: "Account", value: loginState.success ? userRole || "user" : "Guest" },
-            ].map(({ label, value }) => (
-              <div key={label} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm text-center">
-                <p className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">{value}</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{label}</p>
+          {loginState.success && (
+            <>
+              {/* Stats strip */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Links Created", value: shortenedList.length.toString() },
+                  { label: "Account", value: userRole || "user" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+                    <p className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">{value}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Recent links */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-              {loginState.success ? "Your Recent Links" : "Example Links"}
-            </h3>
+              {/* Recent links */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
+                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Your Recent Links
+                </h3>
 
-            <ul className="flex flex-col gap-2">
-              {(loginState.success ? shortenedList : PLACEHOLDER_LINKS).length === 0 ? (
-                <li className="text-sm text-gray-400 dark:text-gray-600 text-center py-6">
-                  No links yet — shorten something!
-                </li>
-              ) : (
-                (loginState.success ? shortenedList : PLACEHOLDER_LINKS).map((item, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 group"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-500">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 font-mono truncate">{item.short}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.original}</p>
-                    </div>
-                    {"clicks" in item && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{(item as { clicks: number }).clicks.toLocaleString()} clicks</span>
-                    )}
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
+                <ul className="flex flex-col gap-2">
+                  {shortenedList.length === 0 ? (
+                    <li className="text-sm text-gray-400 dark:text-gray-600 text-center py-6">
+                      No links yet — shorten something!
+                    </li>
+                  ) : (
+                    shortenedList.map((item, i) => (
+                      <li
+                        key={i}
+                        className="relative flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-500">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 font-mono truncate">{item.short}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{item.original}</p>
+                        </div>
+                        {"clicks" in item && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 mr-2">{(item as { clicks: number }).clicks.toLocaleString()} clicks</span>
+                        )}
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setOpenMenuId(openMenuId === item.shortCode ? null : item.shortCode || null)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="1.5" />
+                              <circle cx="12" cy="5" r="1.5" />
+                              <circle cx="12" cy="19" r="1.5" />
+                            </svg>
+                          </button>
+                          {openMenuId === item.shortCode && item.shortCode && (
+                            <div className="absolute right-0 top-full mt-1 w-28 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] z-10 overflow-hidden flex flex-col pointer-events-auto">
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(item.shortCode)}
+                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            </>
+          )}
 
           {/* How it works — shown only when not logged in */}
           {!loginState.success && (

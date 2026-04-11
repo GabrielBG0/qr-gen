@@ -25,7 +25,6 @@ export async function GET(
       targetUrl = result.rows[0].original_url;
     }
   } catch (error) {
-    console.error("Database error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

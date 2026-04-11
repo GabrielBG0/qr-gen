@@ -47,7 +47,6 @@ export async function loginAction(prevState: any, formData: FormData) {
 
     return { success: true, message: "Logged in!", role: user.role };
   } catch (error) {
-    console.error("Login Error:", error);
     // 4. Do not leak internal database errors
     return { success: false, message: "An unexpected error occurred" };
   }
@@ -82,6 +81,7 @@ export async function shortenUrlAction(prevState: any, formData: FormData) {
       return {
         success: true,
         shortUrl: `${host}/${existingCode}`,
+        shortCode: existingCode,
         message: "Link retrieved from history",
       };
     }
@@ -96,9 +96,9 @@ export async function shortenUrlAction(prevState: any, formData: FormData) {
     return {
       success: true,
       shortUrl: `${host}/${shortCode}`,
+      shortCode,
     };
   } catch (error) {
-    console.error("Shorten error:", error);
     return { success: false, message: "Failed to create link" };
   }
 }
@@ -143,8 +143,89 @@ export async function registerUserAction(prevState: any, formData: FormData) {
 
     return { success: true, message: `User ${newUsername} created!` };
   } catch (error) {
-    console.error("Register Error:", error);
     // 3. Keep DB errors generic
     return { success: false, message: "Registration failed or user already exists" };
+  }
+}
+
+// --- ACTION 4: GET USER LINKS ---
+export async function getUserLinksAction() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("session_user_id")?.value;
+
+  if (!userId) {
+    return { success: false, links: [] };
+  }
+
+  try {
+    const host = process.env.NEXT_PUBLIC_BASE_URL
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}`
+      : "http://localhost:3000";
+
+    const { rows } = await sql`
+      SELECT short_code, original_url, visits
+      FROM links
+      WHERE created_by = ${userId}
+      ORDER BY id DESC
+    `;
+
+    const formattedLinks = rows.map((row) => ({
+      short: `${host}/${row.short_code}`,
+      original: row.original_url,
+      clicks: row.visits || 0,
+      shortCode: row.short_code,
+    }));
+
+    return { success: true, links: formattedLinks };
+  } catch (error) {
+    // Fallback if ORDER BY id DESC fails (e.g., if there's no id column)
+    try {
+      const host = process.env.NEXT_PUBLIC_BASE_URL
+        ? `${process.env.NEXT_PUBLIC_BASE_URL}`
+        : "http://localhost:3000";
+
+      const { rows } = await sql`
+        SELECT short_code, original_url, visits
+        FROM links
+        WHERE created_by = ${userId}
+      `;
+
+      const formattedLinks = rows.map((row) => ({
+        short: `${host}/${row.short_code}`,
+        original: row.original_url,
+        clicks: row.visits || 0,
+        shortCode: row.short_code,
+      })).reverse();
+
+      return { success: true, links: formattedLinks };
+    } catch (innerError) {
+      return { success: false, links: [] };
+    }
+  }
+}
+
+// --- ACTION 5: DELETE LINK ---
+export async function deleteLinkAction(shortCode: string) {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("session_user_id")?.value;
+
+  if (!userId) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const result = await sql`
+      DELETE FROM links
+      WHERE short_code = ${shortCode} AND created_by = ${userId}
+      RETURNING short_code
+    `;
+
+    if (result.rowCount === 0) {
+      return { success: false, message: "Link not found or not owned by you" };
+    }
+
+    return { success: true, message: "Link deleted successfully" };
+  } catch (error) {
+    return { success: false, message: "Failed to delete link" };
   }
 }
